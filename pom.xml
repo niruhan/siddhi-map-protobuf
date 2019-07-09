@@ -7,7 +7,7 @@
         <artifactId>wso2</artifactId>
         <version>5</version>
     </parent>
-    <groupId>org.wso2.extension.siddhi.map.protobuf</groupId>
+    <groupId>io.siddhi.extension.map.protobuf</groupId>
     <artifactId>siddhi-map-protobuf-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>Siddhi map protobuf</name>
@@ -21,22 +21,22 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.wso2.siddhi</groupId>
+                <groupId>io.siddhi</groupId>
                 <artifactId>siddhi-core</artifactId>
                 <version>${siddhi.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.siddhi</groupId>
+                <groupId>io.siddhi</groupId>
                 <artifactId>siddhi-query-api</artifactId>
                 <version>${siddhi.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.siddhi</groupId>
+                <groupId>io.siddhi</groupId>
                 <artifactId>siddhi-annotations</artifactId>
                 <version>${siddhi.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.siddhi</groupId>
+                <groupId>io.siddhi</groupId>
                 <artifactId>siddhi-query-compiler</artifactId>
                 <version>${siddhi.version}</version>
             </dependency>
@@ -82,7 +82,7 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.wso2.siddhi</groupId>
+                <groupId>io.siddhi</groupId>
                 <artifactId>siddhi-doc-gen</artifactId>
                 <version>${siddhi.version}</version>
                 <executions>
@@ -124,7 +124,8 @@
         </plugins>
     </build>
     <properties>
-        <siddhi.version>4.1.0</siddhi.version>
+        <siddhi.version>5.0.0</siddhi.version>
+        <siddhi.version.range>[5.0.0,6.0.0)</siddhi.version.range>
         <log4j.version>1.2.17.wso2v1</log4j.version>
         <testng.version>6.8</testng.version>
         <jacoco.plugin.version>0.7.9</jacoco.plugin.version>

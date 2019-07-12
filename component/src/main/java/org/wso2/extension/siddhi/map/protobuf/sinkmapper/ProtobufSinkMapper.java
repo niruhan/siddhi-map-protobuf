@@ -1,5 +1,23 @@
+/*
+ *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
 package org.wso2.extension.siddhi.map.protobuf.sinkmapper;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import io.siddhi.annotation.Example;
 import io.siddhi.annotation.Extension;
 import io.siddhi.core.config.SiddhiAppContext;
@@ -10,6 +28,10 @@ import io.siddhi.core.util.config.ConfigReader;
 import io.siddhi.core.util.transport.OptionHolder;
 import io.siddhi.core.util.transport.TemplateBuilder;
 import io.siddhi.query.api.definition.StreamDefinition;
+import org.apache.log4j.Logger;
+import org.wso2.extension.siddhi.map.protobuf.utils.Message;
+import org.wso2.extension.siddhi.map.protobuf.utils.MessageRegistry;
+import org.wso2.extension.siddhi.map.protobuf.utils.MessageUtils;
 
 import java.util.Map;
 
@@ -37,6 +59,22 @@ import java.util.Map;
 )
 
 public class ProtobufSinkMapper extends SinkMapper {
+    private static final Logger log = Logger.getLogger(ProtobufSinkMapper.class);
+    private static final String EVENT_PARENT_TAG = "event";
+    private static final String ENCLOSING_ELEMENT_IDENTIFIER = "enclosing.element";
+    private static final String DEFAULT_ENCLOSING_ELEMENT = "$";
+    private static final String JSON_VALIDATION_IDENTIFIER = "validate.json";
+    private static final String JSON_EVENT_SEPERATOR = ",";
+    private static final String JSON_KEYVALUE_SEPERATOR = ":";
+    private static final String JSON_ARRAY_START_SYMBOL = "[";
+    private static final String JSON_ARRAY_END_SYMBOL = "]";
+    private static final String JSON_EVENT_START_SYMBOL = "{";
+    private static final String JSON_EVENT_END_SYMBOL = "}";
+    private static final String UNDEFINED = "undefined";
+
+    private String[] attributeNameArray;
+    private String enclosingElement = null;
+    private boolean isJsonValidationEnabled = false;
 
     /**
      * Returns a list of supported dynamic options (that means for each event value of the option can change) by
@@ -63,7 +101,7 @@ public class ProtobufSinkMapper extends SinkMapper {
     @Override
     public void init(StreamDefinition streamDefinition, OptionHolder optionHolder, Map<String, TemplateBuilder> map,
                      ConfigReader configReader, SiddhiAppContext siddhiAppContext) {
-
+        this.attributeNameArray = streamDefinition.getAttributeNameArray();
     }
 
     /**
@@ -102,6 +140,173 @@ public class ProtobufSinkMapper extends SinkMapper {
     @Override
     public void mapAndSend(Event event, OptionHolder optionHolder, Map<String, TemplateBuilder> map,
                            SinkListener sinkListener) {
-
+        com.google.protobuf.Descriptors.MethodDescriptor methodDescriptor = MessageRegistry.getInstance()
+                .getMethodDescriptor(methodName);
+        String jsonString = event.;
+        Message message = MessageUtils.generateProtoMessage(jsonString, methodDescriptor.getInputType());
+        sinkListener.publish(message);
     }
+
+//    private String constructJsonForDefaultMapping(Object eventObj) {
+//        StringBuilder sb = new StringBuilder();
+//        int numberOfOuterObjects;
+//        if (enclosingElement != null) {
+//            String[] nodeNames = enclosingElement.split("\\.");
+//            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
+//                numberOfOuterObjects = nodeNames.length - 1;
+//            } else {
+//                numberOfOuterObjects = nodeNames.length;
+//            }
+//            for (String nodeName : nodeNames) {
+//                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
+//                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
+//                            .append(JSON_KEYVALUE_SEPERATOR);
+//                }
+//            }
+//            if (eventObj instanceof Event) {
+//                Event event = (Event) eventObj;
+//                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
+//                sb.append(jsonEvent);
+//            } else if (eventObj instanceof Event[]) {
+//                JsonArray eventArray = new JsonArray();
+//                for (Event event : (Event[]) eventObj) {
+//                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
+//                }
+//                sb.append(eventArray.toString());
+//            } else {
+//                log.error("Invalid object type. " + eventObj.toString() +
+//                        " cannot be converted to an event or event array. Hence dropping message.");
+//                return null;
+//            }
+//            for (int i = 0; i < numberOfOuterObjects; i++) {
+//                sb.append(JSON_EVENT_END_SYMBOL);
+//            }
+//            return sb.toString();
+//        } else {
+//            if (eventObj instanceof Event) {
+//                Event event = (Event) eventObj;
+//                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
+//                return jsonEvent.toString();
+//            } else if (eventObj instanceof Event[]) {
+//                JsonArray eventArray = new JsonArray();
+//                for (Event event : (Event[]) eventObj) {
+//                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
+//                }
+//                return (eventArray.toString());
+//            } else {
+//                log.error("Invalid object type. " + eventObj.toString() +
+//                        " cannot be converted to an event or event array.");
+//                return null;
+//            }
+//        }
+//    }
+//
+//    private String constructJsonForCustomMapping(Object eventObj, TemplateBuilder payloadTemplateBuilder) {
+//        StringBuilder sb = new StringBuilder();
+//        int numberOfOuterObjects = 0;
+//        if (enclosingElement != null) {
+//            String[] nodeNames = enclosingElement.split("\\.");
+//            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
+//                numberOfOuterObjects = nodeNames.length - 1;
+//            } else {
+//                numberOfOuterObjects = nodeNames.length;
+//            }
+//            for (String nodeName : nodeNames) {
+//                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
+//                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
+//                            .append(JSON_KEYVALUE_SEPERATOR);
+//                }
+//            }
+//            if (eventObj instanceof Event) {
+//                Event event = doPartialProcessing((Event) eventObj);
+//                sb.append(payloadTemplateBuilder.build(event));
+//            } else if (eventObj instanceof Event[]) {
+//                String jsonEvent;
+//                sb.append(JSON_ARRAY_START_SYMBOL);
+//                for (Event e : (Event[]) eventObj) {
+//                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(e));
+//                    if (jsonEvent != null) {
+//                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
+//                    }
+//                }
+//                sb.delete(sb.length() - 2, sb.length());
+//                sb.append(JSON_ARRAY_END_SYMBOL);
+//            } else {
+//                log.error("Invalid object type. " + eventObj.toString() +
+//                        " cannot be converted to an event or event array. Hence dropping message.");
+//                return null;
+//            }
+//            for (int i = 0; i < numberOfOuterObjects; i++) {
+//                sb.append(JSON_EVENT_END_SYMBOL);
+//            }
+//            return sb.toString();
+//        } else {
+//            if (eventObj.getClass() == Event.class) {
+//                return (String) payloadTemplateBuilder.build(doPartialProcessing((Event) eventObj));
+//            } else if (eventObj.getClass() == Event[].class) {
+//                String jsonEvent;
+//                sb.append(JSON_ARRAY_START_SYMBOL);
+//                for (Event event : (Event[]) eventObj) {
+//                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(event));
+//                    if (jsonEvent != null) {
+//                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
+//                    }
+//                }
+//                sb.delete(sb.length() - 2, sb.length());
+//                sb.append(JSON_ARRAY_END_SYMBOL);
+//                return sb.toString();
+//            } else {
+//                log.error("Invalid object type. " + eventObj.toString() +
+//                        " cannot be converted to an event or event array. Hence dropping message.");
+//                return null;
+//            }
+//        }
+//    }
+//
+//    private JsonObject constructSingleEventForDefaultMapping(Event event) {
+//        Object[] data = event.getData();
+//        JsonObject jsonEventObject = new JsonObject();
+//        JsonObject innerParentObject = new JsonObject();
+//        String attributeName;
+//        Object attributeValue;
+//        Gson gson = new Gson();
+//        for (int i = 0; i < data.length; i++) {
+//            attributeName = attributeNameArray[i];
+//            attributeValue = data[i];
+//            if (attributeValue != null) {
+//                if (attributeValue.getClass() == String.class) {
+//                    innerParentObject.addProperty(attributeName, attributeValue.toString());
+//                } else if (attributeValue instanceof Number) {
+//                    innerParentObject.addProperty(attributeName, (Number) attributeValue);
+//                } else if (attributeValue instanceof Boolean) {
+//                    innerParentObject.addProperty(attributeName, (Boolean) attributeValue);
+//                } else if (attributeValue instanceof Map) {
+//                    if (!((Map) attributeValue).isEmpty()) {
+//                        innerParentObject.add(attributeName, gson.toJsonTree(attributeValue));
+//                    }
+//                }
+//            }
+//        }
+//        jsonEventObject.add(EVENT_PARENT_TAG, innerParentObject);
+//        return jsonEventObject;
+//    }
+//
+//    private Event doPartialProcessing(Event event) {
+//        Object[] data = event.getData();
+//        for (int i = 0; i < data.length; i++) {
+//            if (data[i] == null) {
+//                data[i] = UNDEFINED;
+//            }
+//        }
+//        return event;
+//    }
+//
+//    private static boolean isValidJson(String jsonInString) {
+//        try {
+//            new Gson().fromJson(jsonInString, Object.class);
+//            return true;
+//        } catch (com.google.gson.JsonSyntaxException ex) {
+//            return false;
+//        }
+//    }
 }

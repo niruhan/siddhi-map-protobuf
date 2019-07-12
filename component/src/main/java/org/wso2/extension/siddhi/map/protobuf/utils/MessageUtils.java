@@ -15,8 +15,11 @@
  */
 package org.wso2.extension.siddhi.map.protobuf.utils;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
+import io.siddhi.core.event.Event;
 import io.siddhi.core.exception.SiddhiAppRuntimeException;
 import io.siddhi.query.api.definition.Attribute.Type;
 import org.slf4j.Logger;
@@ -33,7 +36,6 @@ import java.util.Locale;
 public class MessageUtils {
     private static final Logger LOG = LoggerFactory.getLogger(MessageUtils.class);
     private static final String UNKNOWN_ERROR = "Unknown Error";
-
 
     /**
      * Returns protobuf message corresponding to the B7a message.
@@ -56,10 +58,6 @@ public class MessageUtils {
         return responseBuilder.build();
     }
 
-    public static String generateJSOMFromEvent(Object eventObject) {
-        return "";
-    }
-
     /**
      * Returns wire type corresponding to the field descriptor type.
      * <p>
@@ -73,15 +71,15 @@ public class MessageUtils {
      */
     static int getFieldWireType(Descriptors.FieldDescriptor.Type fieldType) {
         if (fieldType == null) {
-            return ServiceProtoConstants.INVALID_WIRE_TYPE;
+            return -1;
         }
-        Integer wireType = GrpcConstants.WIRE_TYPE_MAP.get(fieldType.toProto());
+        Integer wireType = Constants.WIRE_TYPE_MAP.get(fieldType.toProto());
         if (wireType != null) {
             return wireType;
         } else {
             // Returns embedded messages, packed repeated fields message type, if field type doesn't map with the
             // predefined proto types.
-            return ServiceProtoConstants.MESSAGE_WIRE_TYPE;
+            return 2;
         }
     }
 

@@ -29,9 +29,7 @@ import io.siddhi.core.util.transport.OptionHolder;
 import io.siddhi.core.util.transport.TemplateBuilder;
 import io.siddhi.query.api.definition.StreamDefinition;
 import org.apache.log4j.Logger;
-import org.wso2.extension.siddhi.map.protobuf.utils.Message;
-import org.wso2.extension.siddhi.map.protobuf.utils.MessageRegistry;
-import org.wso2.extension.siddhi.map.protobuf.utils.MessageUtils;
+import org.wso2.extension.siddhi.map.protobuf.utils.service.SequenceCallRequest;
 
 import java.util.Map;
 
@@ -75,6 +73,8 @@ public class ProtobufSinkMapper extends SinkMapper {
     private String[] attributeNameArray;
     private String enclosingElement = null;
     private boolean isJsonValidationEnabled = false;
+    private boolean isMIConnect;
+//    private JsonSinkMapper jsonSinkMapper
 
     /**
      * Returns a list of supported dynamic options (that means for each event value of the option can change) by
@@ -102,6 +102,7 @@ public class ProtobufSinkMapper extends SinkMapper {
     public void init(StreamDefinition streamDefinition, OptionHolder optionHolder, Map<String, TemplateBuilder> map,
                      ConfigReader configReader, SiddhiAppContext siddhiAppContext) {
         this.attributeNameArray = streamDefinition.getAttributeNameArray();
+        isMIConnect = optionHolder.validateAndGetOption("mode").getValue().equalsIgnoreCase("MIConnect");
     }
 
     /**
@@ -140,173 +141,176 @@ public class ProtobufSinkMapper extends SinkMapper {
     @Override
     public void mapAndSend(Event event, OptionHolder optionHolder, Map<String, TemplateBuilder> map,
                            SinkListener sinkListener) {
-        com.google.protobuf.Descriptors.MethodDescriptor methodDescriptor = MessageRegistry.getInstance()
-                .getMethodDescriptor(methodName);
-        String jsonString = event.;
-        Message message = MessageUtils.generateProtoMessage(jsonString, methodDescriptor.getInputType());
-        sinkListener.publish(message);
+        if (isMIConnect) {
+            String payloadAsJSON = constructJsonForDefaultMapping(event);
+            SequenceCallRequest.Builder requestBuilder = SequenceCallRequest.newBuilder();
+            requestBuilder.setPayloadAsJSON(payloadAsJSON);
+            requestBuilder.setSequenceName("mySeq");
+            SequenceCallRequest sequenceCallRequest = requestBuilder.build();
+            sinkListener.publish(sequenceCallRequest);
+        }
     }
 
-//    private String constructJsonForDefaultMapping(Object eventObj) {
-//        StringBuilder sb = new StringBuilder();
-//        int numberOfOuterObjects;
-//        if (enclosingElement != null) {
-//            String[] nodeNames = enclosingElement.split("\\.");
-//            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
-//                numberOfOuterObjects = nodeNames.length - 1;
-//            } else {
-//                numberOfOuterObjects = nodeNames.length;
-//            }
-//            for (String nodeName : nodeNames) {
-//                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
-//                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
-//                            .append(JSON_KEYVALUE_SEPERATOR);
-//                }
-//            }
-//            if (eventObj instanceof Event) {
-//                Event event = (Event) eventObj;
-//                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
-//                sb.append(jsonEvent);
-//            } else if (eventObj instanceof Event[]) {
-//                JsonArray eventArray = new JsonArray();
-//                for (Event event : (Event[]) eventObj) {
-//                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
-//                }
-//                sb.append(eventArray.toString());
-//            } else {
-//                log.error("Invalid object type. " + eventObj.toString() +
-//                        " cannot be converted to an event or event array. Hence dropping message.");
-//                return null;
-//            }
-//            for (int i = 0; i < numberOfOuterObjects; i++) {
-//                sb.append(JSON_EVENT_END_SYMBOL);
-//            }
-//            return sb.toString();
-//        } else {
-//            if (eventObj instanceof Event) {
-//                Event event = (Event) eventObj;
-//                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
-//                return jsonEvent.toString();
-//            } else if (eventObj instanceof Event[]) {
-//                JsonArray eventArray = new JsonArray();
-//                for (Event event : (Event[]) eventObj) {
-//                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
-//                }
-//                return (eventArray.toString());
-//            } else {
-//                log.error("Invalid object type. " + eventObj.toString() +
-//                        " cannot be converted to an event or event array.");
-//                return null;
-//            }
-//        }
-//    }
-//
-//    private String constructJsonForCustomMapping(Object eventObj, TemplateBuilder payloadTemplateBuilder) {
-//        StringBuilder sb = new StringBuilder();
-//        int numberOfOuterObjects = 0;
-//        if (enclosingElement != null) {
-//            String[] nodeNames = enclosingElement.split("\\.");
-//            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
-//                numberOfOuterObjects = nodeNames.length - 1;
-//            } else {
-//                numberOfOuterObjects = nodeNames.length;
-//            }
-//            for (String nodeName : nodeNames) {
-//                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
-//                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
-//                            .append(JSON_KEYVALUE_SEPERATOR);
-//                }
-//            }
-//            if (eventObj instanceof Event) {
-//                Event event = doPartialProcessing((Event) eventObj);
-//                sb.append(payloadTemplateBuilder.build(event));
-//            } else if (eventObj instanceof Event[]) {
-//                String jsonEvent;
-//                sb.append(JSON_ARRAY_START_SYMBOL);
-//                for (Event e : (Event[]) eventObj) {
-//                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(e));
-//                    if (jsonEvent != null) {
-//                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
-//                    }
-//                }
-//                sb.delete(sb.length() - 2, sb.length());
-//                sb.append(JSON_ARRAY_END_SYMBOL);
-//            } else {
-//                log.error("Invalid object type. " + eventObj.toString() +
-//                        " cannot be converted to an event or event array. Hence dropping message.");
-//                return null;
-//            }
-//            for (int i = 0; i < numberOfOuterObjects; i++) {
-//                sb.append(JSON_EVENT_END_SYMBOL);
-//            }
-//            return sb.toString();
-//        } else {
-//            if (eventObj.getClass() == Event.class) {
-//                return (String) payloadTemplateBuilder.build(doPartialProcessing((Event) eventObj));
-//            } else if (eventObj.getClass() == Event[].class) {
-//                String jsonEvent;
-//                sb.append(JSON_ARRAY_START_SYMBOL);
-//                for (Event event : (Event[]) eventObj) {
-//                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(event));
-//                    if (jsonEvent != null) {
-//                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
-//                    }
-//                }
-//                sb.delete(sb.length() - 2, sb.length());
-//                sb.append(JSON_ARRAY_END_SYMBOL);
-//                return sb.toString();
-//            } else {
-//                log.error("Invalid object type. " + eventObj.toString() +
-//                        " cannot be converted to an event or event array. Hence dropping message.");
-//                return null;
-//            }
-//        }
-//    }
-//
-//    private JsonObject constructSingleEventForDefaultMapping(Event event) {
-//        Object[] data = event.getData();
-//        JsonObject jsonEventObject = new JsonObject();
-//        JsonObject innerParentObject = new JsonObject();
-//        String attributeName;
-//        Object attributeValue;
-//        Gson gson = new Gson();
-//        for (int i = 0; i < data.length; i++) {
-//            attributeName = attributeNameArray[i];
-//            attributeValue = data[i];
-//            if (attributeValue != null) {
-//                if (attributeValue.getClass() == String.class) {
-//                    innerParentObject.addProperty(attributeName, attributeValue.toString());
-//                } else if (attributeValue instanceof Number) {
-//                    innerParentObject.addProperty(attributeName, (Number) attributeValue);
-//                } else if (attributeValue instanceof Boolean) {
-//                    innerParentObject.addProperty(attributeName, (Boolean) attributeValue);
-//                } else if (attributeValue instanceof Map) {
-//                    if (!((Map) attributeValue).isEmpty()) {
-//                        innerParentObject.add(attributeName, gson.toJsonTree(attributeValue));
-//                    }
-//                }
-//            }
-//        }
-//        jsonEventObject.add(EVENT_PARENT_TAG, innerParentObject);
-//        return jsonEventObject;
-//    }
-//
-//    private Event doPartialProcessing(Event event) {
-//        Object[] data = event.getData();
-//        for (int i = 0; i < data.length; i++) {
-//            if (data[i] == null) {
-//                data[i] = UNDEFINED;
-//            }
-//        }
-//        return event;
-//    }
-//
-//    private static boolean isValidJson(String jsonInString) {
-//        try {
-//            new Gson().fromJson(jsonInString, Object.class);
-//            return true;
-//        } catch (com.google.gson.JsonSyntaxException ex) {
-//            return false;
-//        }
-//    }
+    private String constructJsonForDefaultMapping(Object eventObj) {
+        StringBuilder sb = new StringBuilder();
+        int numberOfOuterObjects;
+        if (enclosingElement != null) {
+            String[] nodeNames = enclosingElement.split("\\.");
+            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
+                numberOfOuterObjects = nodeNames.length - 1;
+            } else {
+                numberOfOuterObjects = nodeNames.length;
+            }
+            for (String nodeName : nodeNames) {
+                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
+                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
+                            .append(JSON_KEYVALUE_SEPERATOR);
+                }
+            }
+            if (eventObj instanceof Event) {
+                Event event = (Event) eventObj;
+                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
+                sb.append(jsonEvent);
+            } else if (eventObj instanceof Event[]) {
+                JsonArray eventArray = new JsonArray();
+                for (Event event : (Event[]) eventObj) {
+                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
+                }
+                sb.append(eventArray.toString());
+            } else {
+                log.error("Invalid object type. " + eventObj.toString() +
+                        " cannot be converted to an event or event array. Hence dropping message.");
+                return null;
+            }
+            for (int i = 0; i < numberOfOuterObjects; i++) {
+                sb.append(JSON_EVENT_END_SYMBOL);
+            }
+            return sb.toString();
+        } else {
+            if (eventObj instanceof Event) {
+                Event event = (Event) eventObj;
+                JsonObject jsonEvent = constructSingleEventForDefaultMapping(doPartialProcessing(event));
+                return jsonEvent.toString();
+            } else if (eventObj instanceof Event[]) {
+                JsonArray eventArray = new JsonArray();
+                for (Event event : (Event[]) eventObj) {
+                    eventArray.add(constructSingleEventForDefaultMapping(doPartialProcessing(event)));
+                }
+                return (eventArray.toString());
+            } else {
+                log.error("Invalid object type. " + eventObj.toString() +
+                        " cannot be converted to an event or event array.");
+                return null;
+            }
+        }
+    }
+
+    private String constructJsonForCustomMapping(Object eventObj, TemplateBuilder payloadTemplateBuilder) {
+        StringBuilder sb = new StringBuilder();
+        int numberOfOuterObjects = 0;
+        if (enclosingElement != null) {
+            String[] nodeNames = enclosingElement.split("\\.");
+            if (DEFAULT_ENCLOSING_ELEMENT.equals(nodeNames[0])) {
+                numberOfOuterObjects = nodeNames.length - 1;
+            } else {
+                numberOfOuterObjects = nodeNames.length;
+            }
+            for (String nodeName : nodeNames) {
+                if (!DEFAULT_ENCLOSING_ELEMENT.equals(nodeName)) {
+                    sb.append(JSON_EVENT_START_SYMBOL).append("\"").append(nodeName).append("\"")
+                            .append(JSON_KEYVALUE_SEPERATOR);
+                }
+            }
+            if (eventObj instanceof Event) {
+                Event event = doPartialProcessing((Event) eventObj);
+                sb.append(payloadTemplateBuilder.build(event));
+            } else if (eventObj instanceof Event[]) {
+                String jsonEvent;
+                sb.append(JSON_ARRAY_START_SYMBOL);
+                for (Event e : (Event[]) eventObj) {
+                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(e));
+                    if (jsonEvent != null) {
+                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
+                    }
+                }
+                sb.delete(sb.length() - 2, sb.length());
+                sb.append(JSON_ARRAY_END_SYMBOL);
+            } else {
+                log.error("Invalid object type. " + eventObj.toString() +
+                        " cannot be converted to an event or event array. Hence dropping message.");
+                return null;
+            }
+            for (int i = 0; i < numberOfOuterObjects; i++) {
+                sb.append(JSON_EVENT_END_SYMBOL);
+            }
+            return sb.toString();
+        } else {
+            if (eventObj.getClass() == Event.class) {
+                return (String) payloadTemplateBuilder.build(doPartialProcessing((Event) eventObj));
+            } else if (eventObj.getClass() == Event[].class) {
+                String jsonEvent;
+                sb.append(JSON_ARRAY_START_SYMBOL);
+                for (Event event : (Event[]) eventObj) {
+                    jsonEvent = (String) payloadTemplateBuilder.build(doPartialProcessing(event));
+                    if (jsonEvent != null) {
+                        sb.append(jsonEvent).append(JSON_EVENT_SEPERATOR).append("\n");
+                    }
+                }
+                sb.delete(sb.length() - 2, sb.length());
+                sb.append(JSON_ARRAY_END_SYMBOL);
+                return sb.toString();
+            } else {
+                log.error("Invalid object type. " + eventObj.toString() +
+                        " cannot be converted to an event or event array. Hence dropping message.");
+                return null;
+            }
+        }
+    }
+
+    private JsonObject constructSingleEventForDefaultMapping(Event event) {
+        Object[] data = event.getData();
+        JsonObject jsonEventObject = new JsonObject();
+        JsonObject innerParentObject = new JsonObject();
+        String attributeName;
+        Object attributeValue;
+        Gson gson = new Gson();
+        for (int i = 0; i < data.length; i++) {
+            attributeName = attributeNameArray[i];
+            attributeValue = data[i];
+            if (attributeValue != null) {
+                if (attributeValue.getClass() == String.class) {
+                    innerParentObject.addProperty(attributeName, attributeValue.toString());
+                } else if (attributeValue instanceof Number) {
+                    innerParentObject.addProperty(attributeName, (Number) attributeValue);
+                } else if (attributeValue instanceof Boolean) {
+                    innerParentObject.addProperty(attributeName, (Boolean) attributeValue);
+                } else if (attributeValue instanceof Map) {
+                    if (!((Map) attributeValue).isEmpty()) {
+                        innerParentObject.add(attributeName, gson.toJsonTree(attributeValue));
+                    }
+                }
+            }
+        }
+        jsonEventObject.add(EVENT_PARENT_TAG, innerParentObject);
+        return jsonEventObject;
+    }
+
+    private Event doPartialProcessing(Event event) {
+        Object[] data = event.getData();
+        for (int i = 0; i < data.length; i++) {
+            if (data[i] == null) {
+                data[i] = UNDEFINED;
+            }
+        }
+        return event;
+    }
+
+    private static boolean isValidJson(String jsonInString) {
+        try {
+            new Gson().fromJson(jsonInString, Object.class);
+            return true;
+        } catch (com.google.gson.JsonSyntaxException ex) {
+            return false;
+        }
+    }
 }

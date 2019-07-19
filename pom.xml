@@ -69,6 +69,11 @@
                 <version>${testng.version}</version>
                 <scope>test</scope>
             </dependency>
+            <!--<dependency>-->
+                <!--<groupId>io.siddhi.extension.map.json</groupId>-->
+                <!--<artifactId>siddhi-map-json</artifactId>-->
+                <!--<version>${siddhi.mapper.json.version}</version>-->
+            <!--</dependency>-->
         </dependencies>
     </dependencyManagement>
     <build>
